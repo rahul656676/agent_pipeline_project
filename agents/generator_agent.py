@@ -27,9 +27,9 @@ Output (structured):
 
 import json
 import os
-from anthropic import Anthropic
+from groq import Groq
 
-MODEL = "claude-3-5-sonnet-20241022"
+MODEL = "llama3-70b-8192"
 
 SYSTEM_PROMPT = """You are the Generator Agent in an educational content pipeline.
 Responsibility: generate draft educational content for a given grade and topic.
@@ -52,8 +52,8 @@ Rules:
 class GeneratorAgent:
     """Generates draft educational content for a given grade and topic."""
 
-    def __init__(self, client: Anthropic = None):
-        self.client = client or Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    def __init__(self, client: Groq = None):
+        self.client = client or Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
     def run(self, input_data: dict) -> dict:
         """
@@ -80,16 +80,17 @@ class GeneratorAgent:
             f"Input:\n{json.dumps({'grade': grade, 'topic': topic})}{feedback_clause}"
         )
 
-        response = self.client.messages.create(
+        response = self.client.chat.completions.create(
             model=MODEL,
             max_tokens=1000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"}
         )
 
-        text = "".join(
-            block.text for block in response.content if block.type == "text"
-        ).strip()
+        text = response.choices[0].message.content.strip()
         
         # More robust JSON extraction
         if "```json" in text:

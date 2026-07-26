@@ -3,7 +3,7 @@ Flask server exposing the agent pipeline over HTTP so the UI (ui/index.html)
 can trigger it with a plain fetch() call.
 
 Run:
-    export ANTHROPIC_API_KEY=sk-ant-...
+    export GROQ_API_KEY=gsk_...
     pip install -r requirements.txt
     python app.py
 
