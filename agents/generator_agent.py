@@ -29,7 +29,7 @@ import json
 import os
 from groq import Groq
 
-MODEL = "llama3-70b-8192"
+MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """You are the Generator Agent in an educational content pipeline.
 Responsibility: generate draft educational content for a given grade and topic.

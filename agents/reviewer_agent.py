@@ -26,7 +26,7 @@ import json
 import os
 from groq import Groq
 
-MODEL = "llama3-70b-8192"
+MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """You are the Reviewer Agent in an educational content pipeline.
 Responsibility: evaluate the Generator Agent's output for age appropriateness,
