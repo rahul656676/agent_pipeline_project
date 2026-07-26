@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generator / Reviewer Agent Pipeline</title>
+<style>
+  :root{
+    --ink:#1b1f23;
+    --paper:#fbfaf7;
+    --rule:#d9d4c8;
+    --chalk-green:#2f5d4f;
+    --chalk-red:#a8442f;
+    --accent:#c98a3a;
+    --muted:#6b6355;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Georgia','Times New Roman',serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:880px;margin:0 auto;}
+  h1{
+    font-size:28px;
+    letter-spacing:.5px;
+    margin:0 0 4px;
+    font-weight:700;
+  }
+  .sub{
+    color:var(--muted);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    margin-bottom:28px;
+    border-bottom:1px solid var(--rule);
+    padding-bottom:20px;
+  }
+  .controls{
+    display:flex;
+    gap:12px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    margin-bottom:28px;
+  }
+  label{
+    display:block;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  input, select{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:14px;
+    padding:9px 10px;
+    border:1px solid var(--rule);
+    background:var(--card);
+    color:var(--ink);
+    border-radius:2px;
+  }
+  select{width:110px;}
+  input[type=text]{width:280px;}
+  button{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    letter-spacing:.5px;
+    padding:10px 20px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  button:disabled{opacity:.5;cursor:default;}
+  button:hover:not(:disabled){background:var(--chalk-green);}
+
+  .pipeline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--muted);
+    margin-bottom:24px;
+  }
+  .node{
+    padding:6px 12px;
+    border:1px solid var(--rule);
+    border-radius:20px;
+    background:var(--card);
+    white-space:nowrap;
+  }
+  .node.active{border-color:var(--accent);color:var(--accent);font-weight:700;}
+  .node.done{border-color:var(--chalk-green);color:var(--chalk-green);}
+  .node.fail{border-color:var(--chalk-red);color:var(--chalk-red);}
+  .arrow{color:var(--rule);}
+
+  .stage{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:22px 24px;
+    margin-bottom:20px;
+  }
+  .stage-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--rule);
+  }
+  .stage-title{
+    font-size:12px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--muted);
+  }
+  .badge{
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:11px;
+    letter-spacing:.5px;
+    padding:3px 10px;
+    border-radius:20px;
+  }
+  .badge.pass{background:#e6efe9;color:var(--chalk-green);}
+  .badge.fail{background:#f5e6e2;color:var(--chalk-red);}
+
+  .explanation{font-size:16px;line-height:1.6;margin-bottom:18px;}
+  .mcq{margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--rule);}
+  .mcq:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+  .mcq .q{font-weight:700;margin-bottom:6px;}
+  .mcq ol{margin:0;padding-left:20px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;}
+  .mcq li{margin-bottom:3px;}
+  .mcq li.correct{color:var(--chalk-green);font-weight:700;}
+
+  ul.feedback{margin:0;padding-left:18px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.7;}
+  ul.feedback li{margin-bottom:4px;}
+
+  .empty{
+    color:var(--muted);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    font-size:13px;
+    font-style:italic;
+  }
+  .spin{
+    display:inline-block;width:12px;height:12px;border:2px solid var(--rule);
+    border-top-color:var(--accent);border-radius:50%;
+    animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .errbox{
+    background:#f5e6e2;color:var(--chalk-red);padding:12px 16px;border-radius:4px;
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;margin-bottom:20px;
+  }
+  .json-toggle{
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:var(--muted);
+    cursor:pointer;text-decoration:underline;margin-top:10px;display:inline-block;
+  }
+  pre{
+    background:#f4f2ec;padding:12px;border-radius:4px;font-size:11px;overflow-x:auto;
+    font-family:'SFMono-Regular',Consolas,monospace;margin-top:8px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Generator / Reviewer Agent Pipeline</h1>
+  <div class="sub">Two structured agents — a Generator that drafts grade-level content, a Reviewer that checks it — with one bounded refinement pass. Backed by a Flask API at <code>/api/run-pipeline</code>.</div>
+
+  <div class="controls">
+    <div>
+      <label>Grade</label>
+      <select id="grade">
+        <option>1</option><option>2</option><option>3</option>
+        <option selected>4</option><option>5</option><option>6</option>
+        <option>7</option><option>8</option>
+      </select>
+    </div>
+    <div>
+      <label>Topic</label>
+      <input id="topic" type="text" value="Types of angles" placeholder="e.g. Types of angles">
+    </div>
+    <button id="run">Run pipeline</button>
+  </div>
+
+  <div class="pipeline" id="pipeline">
+    <div class="node" data-node="gen">1 · Generator</div>
+    <div class="arrow">→</div>
+    <div class="node" data-node="rev">2 · Reviewer</div>
+    <div class="arrow">→</div>
+    <div class="node" data-node="refine">3 · Refinement (if failed)</div>
+  </div>
+
+  <div id="error"></div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-title">Generator output</span>
+      <span id="gen-badge"></span>
+    </div>
+    <div id="gen-body"><span class="empty">Not run yet.</span></div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-title">Reviewer feedback</span>
+      <span id="rev-badge"></span>
+    </div>
+    <div id="rev-body"><span class="empty">Not run yet.</span></div>
+  </div>
+
+  <div class="stage" id="refine-stage" style="display:none;">
+    <div class="stage-head">
+      <span class="stage-title">Refined output</span>
+      <span id="refine-badge"></span>
+    </div>
+    <div id="refine-body"><span class="empty">Not run yet.</span></div>
+  </div>
+
+</div>
+
+<script>
+const runBtn = document.getElementById('run');
+
+function setNode(name, state){
+  const el = document.querySelector(`.node[data-node="${name}"]`);
+  el.classList.remove('active','done','fail');
+  if(state) el.classList.add(state);
+}
+function resetPipeline(){
+  ['gen','rev','refine'].forEach(n=>setNode(n,null));
+  document.getElementById('gen-badge').innerHTML='';
+  document.getElementById('rev-badge').innerHTML='';
+  document.getElementById('refine-badge').innerHTML='';
+  document.getElementById('gen-body').innerHTML='<span class="empty">Not run yet.</span>';
+  document.getElementById('rev-body').innerHTML='<span class="empty">Not run yet.</span>';
+  document.getElementById('refine-body').innerHTML='<span class="empty">Not run yet.</span>';
+  document.getElementById('refine-stage').style.display='none';
+  document.getElementById('error').innerHTML='';
+}
+
+function renderContent(container, content){
+  let html = `<div class="explanation">${escapeHtml(content.explanation)}</div>`;
+  content.mcqs.forEach((m, i)=>{
+    html += `<div class="mcq"><div class="q">Q${i+1}. ${escapeHtml(m.question)}</div><ol type="A">`;
+    const letters = ['A','B','C','D'];
+    m.options.forEach((opt, idx)=>{
+      const isCorrect = letters[idx] === m.answer;
+      html += `<li class="${isCorrect?'correct':''}">${escapeHtml(opt)}${isCorrect?' ✓':''}</li>`;
+    });
+    html += `</ol></div>`;
+  });
+  html += `<span class="json-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block'?'none':'block'; this.textContent = this.textContent==='view raw JSON'?'hide raw JSON':'view raw JSON';">view raw JSON</span>`;
+  html += `<pre style="display:none;">${escapeHtml(JSON.stringify(content, null, 2))}</pre>`;
+  container.innerHTML = html;
+}
+
+function renderFeedback(container, review){
+  if(review.status === 'pass'){
+    container.innerHTML = `<span class="empty">No issues found.</span>`;
+  } else {
+    let html = `<ul class="feedback">`;
+    review.feedback.forEach(f=> html += `<li>${escapeHtml(f)}</li>`);
+    html += `</ul>`;
+    container.innerHTML = html;
+  }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function badge(el, status){
+  el.innerHTML = `<span class="badge ${status==='pass'?'pass':'fail'}">${status.toUpperCase()}</span>`;
+}
+
+runBtn.addEventListener('click', async ()=>{
+  resetPipeline();
+  const grade = document.getElementById('grade').value;
+  const topic = document.getElementById('topic').value.trim();
+  if(!topic){
+    document.getElementById('error').innerHTML = `<div class="errbox">Enter a topic to run the pipeline.</div>`;
+    return;
+  }
+  runBtn.disabled = true;
+  setNode('gen','active');
+  document.getElementById('gen-body').innerHTML = `<span class="empty"><span class="spin"></span>Generating draft content…</span>`;
+
+  try{
+    const response = await fetch('/api/run-pipeline', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({grade: Number(grade), topic})
+    });
+    const result = await response.json();
+
+    if(!response.ok){
+      throw new Error(result.error || 'Pipeline request failed.');
+    }
+
+    // Stage 1: Generator
+    setNode('gen','done');
+    renderContent(document.getElementById('gen-body'), result.generator_output);
+
+    // Stage 2: Reviewer
+    setNode('rev','active');
+    const review = result.reviewer_output;
+    badge(document.getElementById('rev-badge'), review.status);
+    renderFeedback(document.getElementById('rev-body'), review);
+    setNode('rev', review.status === 'pass' ? 'done' : 'fail');
+
+    // Stage 3: Refinement
+    if(result.refined){
+      setNode('refine','active');
+      const refineStage = document.getElementById('refine-stage');
+      refineStage.style.display = 'block';
+
+      renderContent(document.getElementById('refine-body'), result.refined_output);
+      const secondReview = result.refined_review;
+      badge(document.getElementById('refine-badge'), secondReview.status);
+
+      if(secondReview.status === 'fail' && secondReview.feedback.length){
+        const note = document.createElement('div');
+        note.style.marginTop = '14px';
+        note.innerHTML = `<div class="stage-title" style="margin-bottom:8px;">Reviewer notes on refined output (refinement limited to one pass)</div>`;
+        const ul = document.createElement('ul');
+        ul.className = 'feedback';
+        secondReview.feedback.forEach(f=>{
+          const li = document.createElement('li');
+          li.textContent = f;
+          ul.appendChild(li);
+        });
+        note.appendChild(ul);
+        document.getElementById('refine-body').appendChild(note);
+      }
+      setNode('refine', secondReview.status === 'pass' ? 'done' : 'fail');
+    }
+
+  } catch(err){
+    console.error(err);
+    setNode('gen', null);
+    document.getElementById('error').innerHTML = `<div class="errbox">Pipeline error: ${escapeHtml(err.message || String(err))}</div>`;
+  } finally {
+    runBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
