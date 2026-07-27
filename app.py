@@ -1,42 +1,50 @@
-"""
-Flask server exposing the agent pipeline over HTTP so the UI (ui/index.html)
-can trigger it with a plain fetch() call.
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from agents.pipeline import AgentPipeline
+from database import init_db, save_run, get_history
+import uvicorn
 
-Run:
-    export GROQ_API_KEY=gsk_...
-    pip install -r requirements.txt
-    python app.py
+app = FastAPI()
 
-Then open http://localhost:5000 in a browser.
-"""
+# Initialize database
+init_db()
 
-from flask import Flask, request, jsonify, send_from_directory
-from agents import AgentPipeline
-
-app = Flask(__name__, static_folder="ui", static_url_path="")
 pipeline = AgentPipeline()
 
+class GenerateRequest(BaseModel):
+    grade: int
+    topic: str
+    user_id: str
 
-@app.route("/")
-def index():
-    return send_from_directory("ui", "index.html")
-
-
-@app.route("/api/run-pipeline", methods=["POST"])
-def run_pipeline():
-    data = request.get_json(force=True)
-    grade = data.get("grade")
-    topic = data.get("topic")
-
-    if grade is None or not topic:
-        return jsonify({"error": "Both 'grade' and 'topic' are required."}), 400
-
+@app.post("/generate")
+async def generate_content(req: GenerateRequest):
     try:
-        result = pipeline.run(grade=grade, topic=topic)
-        return jsonify(result)
-    except Exception as exc:  # surface pipeline/agent errors to the UI
-        return jsonify({"error": str(exc)}), 500
+        run_artifact = pipeline.run(grade=req.grade, topic=req.topic)
+        # Save run artifact to SQLite
+        save_run(
+            run_id=run_artifact["run_id"],
+            user_id=req.user_id,
+            grade=req.grade,
+            topic=req.topic,
+            status=run_artifact["final"]["status"],
+            artifact_dict=run_artifact
+        )
+        return run_artifact
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/history")
+async def get_run_history(user_id: str):
+    try:
+        return get_history(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Serve the index.html on root path
+@app.get("/")
+async def read_index():
+    return FileResponse("ui/index.html")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    uvicorn.run("app:app", host="127.0.0.1", port=5000, reload=True)

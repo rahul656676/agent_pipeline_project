@@ -2,359 +2,518 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Generator / Reviewer Agent Pipeline</title>
+<title>Governed & Auditable AI Content Pipeline</title>
 <style>
-  :root{
-    --ink:#1b1f23;
-    --paper:#fbfaf7;
-    --rule:#d9d4c8;
-    --chalk-green:#2f5d4f;
-    --chalk-red:#a8442f;
-    --accent:#c98a3a;
-    --muted:#6b6355;
-    --card:#ffffff;
+  :root {
+    --ink: #1e293b;
+    --paper: #f8fafc;
+    --border: #e2e8f0;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #10b981;
+    --error: #ef4444;
+    --muted: #64748b;
+    --card: #ffffff;
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:'Georgia','Times New Roman',serif;
-    padding:32px 20px 80px;
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 40px 20px;
+    line-height: 1.5;
   }
-  .wrap{max-width:880px;margin:0 auto;}
-  h1{
-    font-size:28px;
-    letter-spacing:.5px;
-    margin:0 0 4px;
-    font-weight:700;
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 {
+    font-size: 32px;
+    margin: 0 0 8px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.025em;
   }
-  .sub{
-    color:var(--muted);
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:13px;
-    margin-bottom:28px;
-    border-bottom:1px solid var(--rule);
-    padding-bottom:20px;
+  .sub {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
   }
-  .controls{
-    display:flex;
-    gap:12px;
-    align-items:flex-end;
-    flex-wrap:wrap;
-    margin-bottom:28px;
+  .layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 32px;
   }
-  label{
-    display:block;
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:1px;
-    color:var(--muted);
-    margin-bottom:6px;
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
   }
-  input, select{
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:14px;
-    padding:9px 10px;
-    border:1px solid var(--rule);
-    background:var(--card);
-    color:var(--ink);
-    border-radius:2px;
+  .controls, .history-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
   }
-  select{width:110px;}
-  input[type=text]{width:280px;}
-  button{
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:13px;
-    letter-spacing:.5px;
-    padding:10px 20px;
-    background:var(--ink);
-    color:var(--paper);
-    border:none;
-    border-radius:2px;
-    cursor:pointer;
+  .controls-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
   }
-  button:disabled{opacity:.5;cursor:default;}
-  button:hover:not(:disabled){background:var(--chalk-green);}
+  @media (max-width: 600px) {
+    .controls-row { grid-template-columns: 1fr; }
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input, select {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+  button {
+    width: 100%;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: .5; cursor: default; }
+  
+  .history-list {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-top: 12px;
+  }
+  .history-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  }
+  .history-item:hover { background: #f1f5f9; }
+  .history-item:last-child { border-bottom: none; }
+  .history-item-meta { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .history-item-topic { font-weight: 700; color: #0f172a; }
+  
+  .badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .badge.approved { background: #d1fae5; color: #065f46; }
+  .badge.rejected { background: #fee2e2; color: #991b1b; }
+  .badge.pass { background: #d1fae5; color: #065f46; }
+  .badge.fail { background: #fee2e2; color: #991b1b; }
+  
+  .audit-trail {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .audit-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 20px;
+    color: #0f172a;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .attempt-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: #fafaf9;
+  }
+  .attempt-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .score-box {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+  }
+  .score-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+  .score-val { font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+  
+  .explanation {
+    background: #fff;
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .mcq-list { margin-bottom: 16px; }
+  .mcq-item {
+    background: #fff;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+  }
+  .mcq-q { font-weight: 700; margin-bottom: 8px; font-size: 14px; }
+  .mcq-opts { padding-left: 20px; margin: 0; font-size: 13px; }
+  .mcq-opts li { margin-bottom: 4px; }
+  .mcq-opts li.correct { color: var(--success); font-weight: 700; }
+  
+  .notes-box {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  
+  .tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tag-item {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
 
-  .pipeline{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:1px;
-    color:var(--muted);
-    margin-bottom:24px;
+  .feedback-list {
+    background: #fff8f6;
+    border: 1px solid #fee2e2;
+    border-radius: 6px;
+    padding: 16px;
+    font-size: 13px;
   }
-  .node{
-    padding:6px 12px;
-    border:1px solid var(--rule);
-    border-radius:20px;
-    background:var(--card);
-    white-space:nowrap;
+  .feedback-item { color: #991b1b; margin-bottom: 6px; }
+  .feedback-item:last-child { margin-bottom: 0; }
+  
+  .empty { color: var(--muted); font-style: italic; text-align: center; padding: 40px; }
+  .spin {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; margin-right: 8px; vertical-align: -2px;
   }
-  .node.active{border-color:var(--accent);color:var(--accent);font-weight:700;}
-  .node.done{border-color:var(--chalk-green);color:var(--chalk-green);}
-  .node.fail{border-color:var(--chalk-red);color:var(--chalk-red);}
-  .arrow{color:var(--rule);}
-
-  .stage{
-    background:var(--card);
-    border:1px solid var(--rule);
-    border-radius:4px;
-    padding:22px 24px;
-    margin-bottom:20px;
-  }
-  .stage-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:14px;
-    padding-bottom:10px;
-    border-bottom:1px solid var(--rule);
-  }
-  .stage-title{
-    font-size:12px;
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    text-transform:uppercase;
-    letter-spacing:1.5px;
-    color:var(--muted);
-  }
-  .badge{
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:11px;
-    letter-spacing:.5px;
-    padding:3px 10px;
-    border-radius:20px;
-  }
-  .badge.pass{background:#e6efe9;color:var(--chalk-green);}
-  .badge.fail{background:#f5e6e2;color:var(--chalk-red);}
-
-  .explanation{font-size:16px;line-height:1.6;margin-bottom:18px;}
-  .mcq{margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--rule);}
-  .mcq:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
-  .mcq .q{font-weight:700;margin-bottom:6px;}
-  .mcq ol{margin:0;padding-left:20px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;}
-  .mcq li{margin-bottom:3px;}
-  .mcq li.correct{color:var(--chalk-green);font-weight:700;}
-
-  ul.feedback{margin:0;padding-left:18px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.7;}
-  ul.feedback li{margin-bottom:4px;}
-
-  .empty{
-    color:var(--muted);
-    font-family:'Helvetica Neue',Arial,sans-serif;
-    font-size:13px;
-    font-style:italic;
-  }
-  .spin{
-    display:inline-block;width:12px;height:12px;border:2px solid var(--rule);
-    border-top-color:var(--accent);border-radius:50%;
-    animation:spin .7s linear infinite;margin-right:8px;vertical-align:-2px;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .errbox{
-    background:#f5e6e2;color:var(--chalk-red);padding:12px 16px;border-radius:4px;
-    font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;margin-bottom:20px;
-  }
-  .json-toggle{
-    font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:var(--muted);
-    cursor:pointer;text-decoration:underline;margin-top:10px;display:inline-block;
-  }
-  pre{
-    background:#f4f2ec;padding:12px;border-radius:4px;font-size:11px;overflow-x:auto;
-    font-family:'SFMono-Regular',Consolas,monospace;margin-top:8px;
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .errbox {
+    background: #fef2f2; color: var(--error); border: 1px solid #fee2e2;
+    padding: 16px; border-radius: 6px; font-size: 14px; margin-bottom: 24px;
   }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <h1>Governed & Auditable AI Content Pipeline</h1>
+  <div class="sub">Part 2: Schema validation, quantitative quality scores, SQLite persistence, and bounded refinement attempts.</div>
 
-  <h1>Generator / Reviewer Agent Pipeline</h1>
-  <div class="sub">Two structured agents — a Generator that drafts grade-level content, a Reviewer that checks it — with one bounded refinement pass. Backed by a Flask API at <code>/api/run-pipeline</code>.</div>
-
-  <div class="controls">
+  <div class="layout">
     <div>
-      <label>Grade</label>
-      <select id="grade">
-        <option>1</option><option>2</option><option>3</option>
-        <option selected>4</option><option>5</option><option>6</option>
-        <option>7</option><option>8</option>
-      </select>
+      <div class="controls">
+        <div class="controls-row">
+          <div>
+            <label>User ID</label>
+            <input id="userId" type="text" value="default_user">
+          </div>
+          <div>
+            <label>Grade</label>
+            <select id="grade">
+              <option>1</option><option>2</option><option>3</option>
+              <option>4</option><option selected>5</option><option>6</option>
+              <option>7</option><option>8</option>
+            </select>
+          </div>
+          <div>
+            <label>Topic</label>
+            <input id="topic" type="text" value="Fractions as parts of a whole">
+          </div>
+        </div>
+        <button id="run">Run Governed Pipeline</button>
+      </div>
+
+      <div id="error"></div>
+
+      <div class="audit-trail">
+        <div class="audit-section-title">Audit Trail & Output Lifecycle</div>
+        <div id="audit-body"><div class="empty">No pipeline runs loaded. Enter parameters and click "Run Governed Pipeline".</div></div>
+      </div>
     </div>
+
     <div>
-      <label>Topic</label>
-      <input id="topic" type="text" value="Types of angles" placeholder="e.g. Types of angles">
+      <div class="history-panel">
+        <label>Runs History</label>
+        <button id="loadHistory" style="margin-top: 8px; padding: 8px 12px; font-size: 12px;">Load History</button>
+        <div class="history-list" id="history-list">
+          <div style="font-size: 13px; color: var(--muted); text-align: center; padding: 20px 0;">No history loaded.</div>
+        </div>
+      </div>
     </div>
-    <button id="run">Run pipeline</button>
   </div>
-
-  <div class="pipeline" id="pipeline">
-    <div class="node" data-node="gen">1 · Generator</div>
-    <div class="arrow">→</div>
-    <div class="node" data-node="rev">2 · Reviewer</div>
-    <div class="arrow">→</div>
-    <div class="node" data-node="refine">3 · Refinement (if failed)</div>
-  </div>
-
-  <div id="error"></div>
-
-  <div class="stage">
-    <div class="stage-head">
-      <span class="stage-title">Generator output</span>
-      <span id="gen-badge"></span>
-    </div>
-    <div id="gen-body"><span class="empty">Not run yet.</span></div>
-  </div>
-
-  <div class="stage">
-    <div class="stage-head">
-      <span class="stage-title">Reviewer feedback</span>
-      <span id="rev-badge"></span>
-    </div>
-    <div id="rev-body"><span class="empty">Not run yet.</span></div>
-  </div>
-
-  <div class="stage" id="refine-stage" style="display:none;">
-    <div class="stage-head">
-      <span class="stage-title">Refined output</span>
-      <span id="refine-badge"></span>
-    </div>
-    <div id="refine-body"><span class="empty">Not run yet.</span></div>
-  </div>
-
 </div>
 
 <script>
 const runBtn = document.getElementById('run');
+const historyBtn = document.getElementById('loadHistory');
 
-function setNode(name, state){
-  const el = document.querySelector(`.node[data-node="${name}"]`);
-  el.classList.remove('active','done','fail');
-  if(state) el.classList.add(state);
-}
-function resetPipeline(){
-  ['gen','rev','refine'].forEach(n=>setNode(n,null));
-  document.getElementById('gen-badge').innerHTML='';
-  document.getElementById('rev-badge').innerHTML='';
-  document.getElementById('refine-badge').innerHTML='';
-  document.getElementById('gen-body').innerHTML='<span class="empty">Not run yet.</span>';
-  document.getElementById('rev-body').innerHTML='<span class="empty">Not run yet.</span>';
-  document.getElementById('refine-body').innerHTML='<span class="empty">Not run yet.</span>';
-  document.getElementById('refine-stage').style.display='none';
-  document.getElementById('error').innerHTML='';
-}
-
-function renderContent(container, content){
-  let html = `<div class="explanation">${escapeHtml(content.explanation)}</div>`;
-  content.mcqs.forEach((m, i)=>{
-    html += `<div class="mcq"><div class="q">Q${i+1}. ${escapeHtml(m.question)}</div><ol type="A">`;
-    const letters = ['A','B','C','D'];
-    m.options.forEach((opt, idx)=>{
-      const isCorrect = letters[idx] === m.answer;
-      html += `<li class="${isCorrect?'correct':''}">${escapeHtml(opt)}${isCorrect?' ✓':''}</li>`;
+async function loadHistory() {
+  const userId = document.getElementById('userId').value.trim();
+  const listEl = document.getElementById('history-list');
+  listEl.innerHTML = '<div class="empty"><span class="spin"></span>Loading history...</div>';
+  try {
+    const res = await fetch(`/history?user_id=${encodeURIComponent(userId)}`);
+    const history = await res.json();
+    if (!res.ok) throw new Error(history.detail || 'Failed to load history');
+    if (!history.length) {
+      listEl.innerHTML = '<div style="font-size: 13px; color: var(--muted); text-align: center; padding: 20px 0;">No runs found for this user.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    history.forEach(run => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      const statusClass = run.final.status === 'approved' ? 'approved' : 'rejected';
+      const formattedTime = new Date(run.timestamps.started_at).toLocaleString();
+      item.innerHTML = `
+        <div class="history-item-meta">
+          <span class="badge ${statusClass}">${run.final.status}</span>
+          <span style="color: var(--muted); font-size: 11px;">G${run.input.grade}</span>
+        </div>
+        <div class="history-item-topic">${escapeHtml(run.input.topic)}</div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">${formattedTime}</div>
+      `;
+      item.addEventListener('click', () => renderRunArtifact(run));
+      listEl.appendChild(item);
     });
-    html += `</ol></div>`;
-  });
-  html += `<span class="json-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='block'?'none':'block'; this.textContent = this.textContent==='view raw JSON'?'hide raw JSON':'view raw JSON';">view raw JSON</span>`;
-  html += `<pre style="display:none;">${escapeHtml(JSON.stringify(content, null, 2))}</pre>`;
-  container.innerHTML = html;
-}
-
-function renderFeedback(container, review){
-  if(review.status === 'pass'){
-    container.innerHTML = `<span class="empty">No issues found.</span>`;
-  } else {
-    let html = `<ul class="feedback">`;
-    review.feedback.forEach(f=> html += `<li>${escapeHtml(f)}</li>`);
-    html += `</ul>`;
-    container.innerHTML = html;
+  } catch (err) {
+    listEl.innerHTML = `<div style="font-size: 13px; color: var(--error); text-align: center; padding: 20px 0;">${escapeHtml(err.message)}</div>`;
   }
 }
 
-function escapeHtml(str){
+function renderRunArtifact(run) {
+  const body = document.getElementById('audit-body');
+  let html = `
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+      <div>
+        <div style="font-size: 13px; color: var(--muted);">Run ID: <strong>${run.run_id}</strong></div>
+        <div style="font-size: 15px; font-weight: 700; margin-top: 4px;">Topic: ${escapeHtml(run.input.topic)} (Grade ${run.input.grade})</div>
+      </div>
+      <div>
+        <span class="badge ${run.final.status === 'approved' ? 'approved' : 'rejected'}" style="font-size: 14px; padding: 6px 12px;">
+          ${run.final.status.toUpperCase()}
+        </span>
+      </div>
+    </div>
+  `;
+
+  // Display attempts
+  html += `<div class="audit-section-title" style="font-size: 16px; margin-top: 24px;">Generation & Refinement Log</div>`;
+  run.attempts.forEach(att => {
+    const isPass = att.review.pass;
+    html += `
+      <div class="attempt-card">
+        <div class="attempt-title" style="display: flex; justify-content: space-between;">
+          <span>Attempt ${att.attempt}</span>
+          <span class="badge ${isPass ? 'pass' : 'fail'}">${isPass ? 'PASS' : 'FAIL'}</span>
+        </div>
+        
+        <div class="score-grid">
+          <div class="score-box">
+            <div class="score-label">Age Appr.</div>
+            <div class="score-val">${att.review.scores.age_appropriateness}/5</div>
+          </div>
+          <div class="score-box">
+            <div class="score-label">Correctness</div>
+            <div class="score-val">${att.review.scores.correctness}/5</div>
+          </div>
+          <div class="score-box">
+            <div class="score-label">Clarity</div>
+            <div class="score-val">${att.review.scores.clarity}/5</div>
+          </div>
+          <div class="score-box">
+            <div class="score-label">Coverage</div>
+            <div class="score-val">${att.review.scores.coverage}/5</div>
+          </div>
+        </div>
+
+        <div style="font-weight: 600; font-size: 13px; color: var(--muted); margin-bottom: 8px;">Generated Draft Content:</div>
+        <div class="explanation">
+          <strong>Explanation (Grade ${att.draft.explanation.grade}):</strong><br>
+          ${escapeHtml(att.draft.explanation.text)}
+        </div>
+
+        <div class="mcq-list">
+          ${att.draft.mcqs.map((q, idx) => `
+            <div class="mcq-item">
+              <div class="mcq-q">Q${idx+1}. ${escapeHtml(q.question)}</div>
+              <ol class="mcq-opts" type="A">
+                ${q.options.map((opt, oIdx) => `
+                  <li class="${oIdx === q.correct_index ? 'correct' : ''}">
+                    ${escapeHtml(opt)} ${oIdx === q.correct_index ? '✓' : ''}
+                  </li>
+                `).join('')}
+              </ol>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="notes-box">
+          <strong>Learning Objective:</strong> ${escapeHtml(att.draft.teacher_notes.learning_objective)}<br><br>
+          <strong>Common Misconceptions:</strong>
+          <ul style="margin: 4px 0 0; padding-left: 20px;">
+            ${att.draft.teacher_notes.common_misconceptions.map(m => `<li>${escapeHtml(m)}</li>`).join('')}
+          </ul>
+        </div>
+    `;
+
+    if (!isPass && att.review.feedback && att.review.feedback.length) {
+      html += `
+        <div class="feedback-list">
+          <strong style="color: #991b1b; display: block; margin-bottom: 8px;">Reviewer Critique & Feedback:</strong>
+          ${att.review.feedback.map(fb => `
+            <div class="feedback-item">
+              <strong>Field [${escapeHtml(fb.field)}]:</strong> ${escapeHtml(fb.issue)}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    if (att.refined) {
+      html += `
+        <div style="margin-top: 16px; padding: 12px; background: #e0f2fe; border-left: 4px solid var(--accent); border-radius: 4px; font-size: 13px;">
+          <strong>Refiner Agent:</strong> Generated refined draft addressing feedback items.
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+  });
+
+  // Display Final tags if approved
+  if (run.final.status === 'approved' && run.final.tags) {
+    const t = run.final.tags;
+    html += `
+      <div class="attempt-card" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <div class="attempt-title" style="color: #166534;">Final Classification Tags</div>
+        <div class="tag-container">
+          <div class="tag-item" style="background: #dcfce7; color: #166534;">Subject: ${escapeHtml(t.subject)}</div>
+          <div class="tag-item" style="background: #dcfce7; color: #166534;">Topic: ${escapeHtml(t.topic)}</div>
+          <div class="tag-item" style="background: #dcfce7; color: #166534;">Grade: ${escapeHtml(String(t.grade))}</div>
+          <div class="tag-item" style="background: #dcfce7; color: #166534;">Difficulty: ${escapeHtml(t.difficulty)}</div>
+          <div class="tag-item" style="background: #dcfce7; color: #166534;">Bloom's Level: ${escapeHtml(t.blooms_level)}</div>
+          ${t.content_type.map(ct => `
+            <div class="tag-item" style="background: #dcfce7; color: #166534;">Type: ${escapeHtml(ct)}</div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Display timestamps
+  const start = new Date(run.timestamps.started_at);
+  const end = new Date(run.timestamps.finished_at);
+  const duration = ((end - start) / 1000).toFixed(1);
+  html += `
+    <div style="font-size: 12px; color: var(--muted); margin-top: 20px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between;">
+      <span>Started: ${start.toLocaleString()}</span>
+      <span>Finished: ${end.toLocaleString()} (${duration}s duration)</span>
+    </div>
+  `;
+
+  body.innerHTML = html;
+}
+
+function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
 
-function badge(el, status){
-  el.innerHTML = `<span class="badge ${status==='pass'?'pass':'fail'}">${status.toUpperCase()}</span>`;
-}
-
-runBtn.addEventListener('click', async ()=>{
-  resetPipeline();
+runBtn.addEventListener('click', async () => {
+  const userId = document.getElementById('userId').value.trim();
   const grade = document.getElementById('grade').value;
   const topic = document.getElementById('topic').value.trim();
-  if(!topic){
-    document.getElementById('error').innerHTML = `<div class="errbox">Enter a topic to run the pipeline.</div>`;
+  const errorEl = document.getElementById('error');
+  const auditEl = document.getElementById('audit-body');
+
+  errorEl.innerHTML = '';
+  if (!topic) {
+    errorEl.innerHTML = `<div class="errbox">Please enter a topic.</div>`;
     return;
   }
+
   runBtn.disabled = true;
-  setNode('gen','active');
-  document.getElementById('gen-body').innerHTML = `<span class="empty"><span class="spin"></span>Generating draft content…</span>`;
+  auditEl.innerHTML = `<div class="empty"><span class="spin"></span>Executing governed agent pipeline... This will run generation, quality score evaluation, and up to 2 rounds of refinement if necessary.</div>`;
 
-  try{
-    const response = await fetch('/api/run-pipeline', {
+  try {
+    const res = await fetch('/generate', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({grade: Number(grade), topic})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade: Number(grade), topic, user_id: userId })
     });
-    const result = await response.json();
-
-    if(!response.ok){
-      throw new Error(result.error || 'Pipeline request failed.');
-    }
-
-    // Stage 1: Generator
-    setNode('gen','done');
-    renderContent(document.getElementById('gen-body'), result.generator_output);
-
-    // Stage 2: Reviewer
-    setNode('rev','active');
-    const review = result.reviewer_output;
-    badge(document.getElementById('rev-badge'), review.status);
-    renderFeedback(document.getElementById('rev-body'), review);
-    setNode('rev', review.status === 'pass' ? 'done' : 'fail');
-
-    // Stage 3: Refinement
-    if(result.refined){
-      setNode('refine','active');
-      const refineStage = document.getElementById('refine-stage');
-      refineStage.style.display = 'block';
-
-      renderContent(document.getElementById('refine-body'), result.refined_output);
-      const secondReview = result.refined_review;
-      badge(document.getElementById('refine-badge'), secondReview.status);
-
-      if(secondReview.status === 'fail' && secondReview.feedback.length){
-        const note = document.createElement('div');
-        note.style.marginTop = '14px';
-        note.innerHTML = `<div class="stage-title" style="margin-bottom:8px;">Reviewer notes on refined output (refinement limited to one pass)</div>`;
-        const ul = document.createElement('ul');
-        ul.className = 'feedback';
-        secondReview.feedback.forEach(f=>{
-          const li = document.createElement('li');
-          li.textContent = f;
-          ul.appendChild(li);
-        });
-        note.appendChild(ul);
-        document.getElementById('refine-body').appendChild(note);
-      }
-      setNode('refine', secondReview.status === 'pass' ? 'done' : 'fail');
-    }
-
-  } catch(err){
-    console.error(err);
-    setNode('gen', null);
-    document.getElementById('error').innerHTML = `<div class="errbox">Pipeline error: ${escapeHtml(err.message || String(err))}</div>`;
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || 'Pipeline request failed');
+    renderRunArtifact(result);
+    loadHistory(); // Reload history pane
+  } catch (err) {
+    errorEl.innerHTML = `<div class="errbox">Pipeline execution error: ${escapeHtml(err.message)}</div>`;
+    auditEl.innerHTML = `<div class="empty">Execution failed. Check the error message above.</div>`;
   } finally {
     runBtn.disabled = false;
   }
 });
+
+historyBtn.addEventListener('click', loadHistory);
+
+// Initial load
+loadHistory();
 </script>
 </body>
 </html>

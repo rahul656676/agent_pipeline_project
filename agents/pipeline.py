@@ -1,75 +1,113 @@
-"""
-Pipeline orchestration
------------------------
-Wires the Generator Agent and Reviewer Agent together with lightweight,
-inline refinement logic:
-
-    1. Run Generator(grade, topic)          -> draft
-    2. Run Reviewer(draft)                  -> review
-    3. If review.status == "fail":
-           Re-run Generator with feedback embedded (ONE refinement pass only)
-           Re-run Reviewer on the refined draft
-    4. Return everything the UI needs to render each stage.
-
-No separate "Refiner" agent is used -- refinement is just calling the
-Generator again with the Reviewer's feedback folded into its input.
-"""
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import Dict, Any
 
 from .generator_agent import GeneratorAgent
 from .reviewer_agent import ReviewerAgent
-
+from .refiner_agent import RefinerAgent
+from .tagger_agent import TaggerAgent
 
 class AgentPipeline:
-    def __init__(self, generator: GeneratorAgent = None, reviewer: ReviewerAgent = None):
+    def __init__(
+        self,
+        generator: GeneratorAgent = None,
+        reviewer: ReviewerAgent = None,
+        refiner: RefinerAgent = None,
+        tagger: TaggerAgent = None
+    ):
         self.generator = generator or GeneratorAgent()
         self.reviewer = reviewer or ReviewerAgent()
+        self.refiner = refiner or RefinerAgent()
+        self.tagger = tagger or TaggerAgent()
 
-    def run(self, grade: int, topic: str) -> dict:
+    def run(self, grade: int, topic: str) -> Dict[str, Any]:
         """
-        Runs the full pipeline and returns a result dict describing every
-        stage, suitable for direct display in a UI:
-
-        {
-            "generator_output": {...},
-            "reviewer_output": {"status": ..., "feedback": [...]},
-            "refined": bool,
-            "refined_output": {...} | None,
-            "refined_review": {...} | None
-        }
+        Runs the governed, auditable AI content generation pipeline.
+        Returns a RunArtifact matching the specifications in Part 2.
         """
-        result = {
-            "generator_output": None,
-            "reviewer_output": None,
-            "refined": False,
-            "refined_output": None,
-            "refined_review": None,
-        }
+        run_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc).isoformat()
+        
+        attempts = []
+        final_status = "rejected"
+        final_content = None
+        final_tags = None
 
-        # Stage 1: Generator
-        draft = self.generator.run({"grade": grade, "topic": topic})
-        result["generator_output"] = draft
+        # Step 1: Generate initial draft
+        current_draft = self.generator.run({"grade": grade, "topic": topic})
+        current_review = self.reviewer.run(current_draft, grade, topic)
 
-        # Stage 2: Reviewer
-        review = self.reviewer.run(draft, grade, topic)
-        result["reviewer_output"] = review
+        refinement_count = 0
+        max_refinements = 2
 
-        # Stage 3: Refinement (single bounded pass, inline)
-        if review.get("status") == "fail":
-            result["refined"] = True
-            refined_draft = self.generator.run(
-                {"grade": grade, "topic": topic, "feedback": review.get("feedback", [])}
+        while True:
+            if current_review.get("pass") is True:
+                final_status = "approved"
+                final_content = current_draft
+                # Run Tagger on approved content only
+                final_tags = self.tagger.run(final_content, grade, topic)
+                
+                # Log the successful attempt
+                attempts.append({
+                    "attempt": len(attempts) + 1,
+                    "draft": current_draft,
+                    "review": current_review,
+                    "refined": None
+                })
+                break
+
+            # If failed and we reached the maximum refinement calls (2), we stop
+            if refinement_count >= max_refinements:
+                final_status = "rejected"
+                final_content = current_draft
+                attempts.append({
+                    "attempt": len(attempts) + 1,
+                    "draft": current_draft,
+                    "review": current_review,
+                    "refined": None
+                })
+                break
+
+            # Perform refinement
+            refined_draft = self.refiner.run(
+                current_draft,
+                current_review.get("feedback", []),
+                grade,
+                topic
             )
-            refined_review = self.reviewer.run(refined_draft, grade, topic)
+            refinement_count += 1
 
-            result["refined_output"] = refined_draft
-            result["refined_review"] = refined_review
+            # Log the current attempt with its refinement output
+            attempts.append({
+                "attempt": len(attempts) + 1,
+                "draft": current_draft,
+                "review": current_review,
+                "refined": refined_draft
+            })
 
-        return result
+            # Prepare for next iteration
+            current_draft = refined_draft
+            current_review = self.reviewer.run(current_draft, grade, topic)
 
+        finished_at = datetime.now(timezone.utc).isoformat()
 
-if __name__ == "__main__":
-    import json
+        run_artifact = {
+            "run_id": run_id,
+            "input": {
+                "grade": grade,
+                "topic": topic
+            },
+            "attempts": attempts,
+            "final": {
+                "status": final_status,
+                "content": final_content,
+                "tags": final_tags
+            },
+            "timestamps": {
+                "started_at": started_at,
+                "finished_at": finished_at
+            }
+        }
 
-    pipeline = AgentPipeline()
-    output = pipeline.run(grade=4, topic="Types of angles")
-    print(json.dumps(output, indent=2))
+        return run_artifact
